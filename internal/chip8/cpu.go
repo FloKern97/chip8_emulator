@@ -3,10 +3,10 @@ package chip8
 import "errors"
 
 const (
-	memorySize = 4096
+	memorySize   = 4096
 	programStart = 0x200
-	registers = 16
-	stackSize = 16
+	registers    = 16
+	stackSize    = 16
 )
 
 type CPU struct {
@@ -27,13 +27,26 @@ func NewCPU() *CPU {
 }
 
 func (cpu *CPU) LoadROM(rom []byte) error {
-	if len(rom) > len(cpu.Memory) - programStart {
+	if len(rom) > len(cpu.Memory)-programStart {
 		return errors.New("rom too large for cpu memory")
-	} 
+	}
 
 	for index, value := range rom {
 		cpu.Memory[programStart+index] = value
 	}
 
 	return nil
+}
+
+func (cpu *CPU) Fetch() uint16 {
+	high := cpu.Memory[cpu.PC]
+	low := cpu.Memory[cpu.PC+1]
+
+	shiftedHigh := uint16(high) << 8
+
+	opCode := shiftedHigh | uint16(low)
+
+	cpu.PC += 2
+
+	return uint16(opCode)
 }

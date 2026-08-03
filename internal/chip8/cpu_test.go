@@ -65,3 +65,25 @@ func TestLoadROM_Overflow(t *testing.T) {
 		t.Fatal("expected error for ROM that is too large.")
 	}
 }
+
+func TestFetchUInt16OpCode(t *testing.T) {
+	cpu := NewCPU()
+
+	rom := []byte{0x12, 0x34}
+
+	err := cpu.LoadROM(rom)
+
+	if err != nil {
+		t.Fatal("An error occurred while loading the ROM.")
+	}
+
+	opCode := cpu.Fetch()
+
+	if opCode != 0x1234 {
+		t.Fatal("Fetch() did not calculate the correct result")
+	}
+
+	if cpu.PC != 0x202 {
+		t.Fatal("PC was not set correctly after fetching the opCode.")
+	}
+}
