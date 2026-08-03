@@ -50,3 +50,15 @@ func (cpu *CPU) Fetch() uint16 {
 
 	return uint16(opCode)
 }
+
+func (cpu *CPU) Execute(opCode uint16) error {
+	switch opCode & 0xF000 {
+	case 0x1000:
+		cpu.PC = opCode & 0x0FFF
+
+	default:
+		return errors.New("unsupported Opcode")
+	}
+
+	return nil
+}

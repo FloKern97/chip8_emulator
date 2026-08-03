@@ -87,3 +87,27 @@ func TestFetchUInt16OpCode(t *testing.T) {
 		t.Fatal("PC was not set correctly after fetching the opCode.")
 	}
 }
+
+func TestExecuteJump(t *testing.T) {
+	cpu := NewCPU()
+
+	jumpErr := cpu.Execute(0x1234)
+
+	if jumpErr != nil {
+		t.Fatal("An error occurred while executing the jump.")
+	}
+
+	if cpu.PC != 0x234 {
+		t.Fatalf("The new PC address was calculated incorrectly. Expected 0x234, got 0x%X", cpu.PC)
+	}
+}
+
+func TestExecuteUnknownOpCode(t *testing.T) {
+	cpu := NewCPU()
+
+	err := cpu.Execute(0xFFFF)
+
+	if err == nil {
+		t.Fatal("0xFFFF should be an unknown Opcode and cause an error.")
+	}
+}
