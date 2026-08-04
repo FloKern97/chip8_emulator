@@ -232,8 +232,8 @@ func TestExecuteNoSkipForMultipleRegisters(t *testing.T) {
 		t.Fatal("an error occurred while checking multiple registers for the same value")
 	}
 
-	if cpu.PC != 0x202 {
-		t.Fatalf("expected PC to be 0x202 got 0x%X instead", cpu.PC)
+	if cpu.PC != 0x204 {
+		t.Fatalf("expected PC to be 0x204 got 0x%X instead", cpu.PC)
 	}
 }
 
@@ -250,8 +250,8 @@ func TestExecuteSkipForMultipleRegisters(t *testing.T) {
 		t.Fatal("an error occurred while checking multiple registers for the same value")
 	}
 
-	if cpu.PC != 0x204 {
-		t.Fatalf("expected PC to be 0x204 got 0x%X instead", cpu.PC)
+	if cpu.PC != 0x202 {
+		t.Fatalf("expected PC to be 0x202 got 0x%X instead", cpu.PC)
 	}
 }
 
@@ -282,7 +282,8 @@ func TestExecuteReturnFromSubroutineAddress(t *testing.T) {
 	cpu := NewCPU()
 	cpu.PC = 0x456
 	cpu.SP = 1
-	cpu.Stack[cpu.SP] = 0x202
+	// SP must be 1 because returning from the subroutine means that the former PC address was written when SP was 0
+	cpu.Stack[0] = 0x202
 
 	err := cpu.Execute(0x00EE)
 
@@ -296,5 +297,15 @@ func TestExecuteReturnFromSubroutineAddress(t *testing.T) {
 
 	if cpu.PC != 0x202 {
 		t.Fatalf("expected PC to be 0x202, got 0x%X", cpu.PC)
+	}
+}
+
+func TestExecuteUnknownSpecialCode(t *testing.T) {
+	cpu := NewCPU()
+
+	err := cpu.Execute(0x00AE)
+
+	if err == nil {
+		t.Fatalf("expected error for unknown code")
 	}
 }

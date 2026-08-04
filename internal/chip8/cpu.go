@@ -53,8 +53,9 @@ func (cpu *CPU) Fetch() uint16 {
 
 func (cpu *CPU) Execute(opCode uint16) error {
 	switch opCode & 0xF000 {
+	// special op codes like returning from subroutine
 	case 0x0000:
-		cpu.handleSpecialCodes(opCode)
+		return cpu.handleSpecialCodes(opCode)
 	// jump
 	case 0x1000:
 		cpu.PC = opCode & 0x0FFF
@@ -125,8 +126,8 @@ func (cpu *CPU) handleSpecialCodes(opCode uint16) error {
 	switch opCode {
 	// return from subroutine
 	case 0x00EE:
-		cpu.PC = cpu.Stack[cpu.SP]
 		cpu.SP--
+		cpu.PC = cpu.Stack[cpu.SP]
 
 	default:
 		return errors.New("unsupported special code")
