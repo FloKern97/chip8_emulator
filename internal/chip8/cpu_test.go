@@ -254,3 +254,47 @@ func TestExecuteSkipForMultipleRegisters(t *testing.T) {
 		t.Fatalf("expected PC to be 0x204 got 0x%X instead", cpu.PC)
 	}
 }
+
+func TestExecuteSetPCToSubRoutineAddress(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x202
+
+	err := cpu.Execute(0x2456)
+
+	if err != nil {
+		t.Fatal("an error occurred while trying to jump to subroutine address")
+	}
+
+	if cpu.SP != 1 {
+		t.Fatalf("expected SP to be 1, got %X", cpu.SP)
+	}
+
+	if cpu.Stack[0] != 0x202 {
+		t.Fatalf("expected the stack to hold 0x202 at index 0, got 0x%X instead", cpu.Stack[0])
+	}
+
+	if cpu.PC != 0x456 {
+		t.Fatalf("expected PC to be 0x456, got 0x%X", cpu.PC)
+	}
+}
+
+func TestExecuteReturnFromSubroutineAddress(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x456
+	cpu.SP = 1
+	cpu.Stack[cpu.SP] = 0x202
+
+	err := cpu.Execute(0x00EE)
+
+	if err != nil {
+		t.Fatal("an error occurred while trying to return from subroutine address")
+	}
+
+	if cpu.SP != 0 {
+		t.Fatalf("expected SP to be 0, got %X", cpu.SP)
+	}
+
+	if cpu.PC != 0x202 {
+		t.Fatalf("expected PC to be 0x202, got 0x%X", cpu.PC)
+	}
+}

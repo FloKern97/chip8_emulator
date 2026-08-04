@@ -53,25 +53,18 @@ func (cpu *CPU) Fetch() uint16 {
 
 func (cpu *CPU) Execute(opCode uint16) error {
 	switch opCode & 0xF000 {
+	case 0x0000:
+		cpu.handleSpecialCodes(opCode)
 	// jump
 	case 0x1000:
 		cpu.PC = opCode & 0x0FFF
 
-		// set register
-	case 0x6000:
-		register := int((opCode & 0x0F00) >> 8)
-		registerValue := opCode & 0x00FF
-		cpu.V[register] = byte(registerValue)
+	case 0x2000:
+		subRoutineAddress := opCode & 0x0FFF
+		cpu.Stack[cpu.SP] = cpu.PC
+		cpu.SP++
 
-		// Add to register
-	case 0x7000:
-		register := int((opCode & 0x0F00) >> 8)
-		valueToAdd := opCode & 0x00FF
-		cpu.V[register] += byte(valueToAdd)
-
-		// Set I
-	case 0xA000:
-		cpu.I = opCode & 0x0FFF
+		cpu.PC = subRoutineAddress
 
 		// skip
 	case 0x3000:
@@ -91,6 +84,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 			cpu.PC += 2
 		}
 
+		// Compare register values, if not equal -> "skip"
 	case 0x5000:
 		firstRegister := int((opCode & 0x0F00) >> 8)
 		secondRegister := int((opCode & 0x00F0) >> 4)
@@ -100,12 +94,42 @@ func (cpu *CPU) Execute(opCode uint16) error {
 			return errors.New("last bit of the opcode must be 0 for this operation")
 		}
 
-		if cpu.V[firstRegister] != cpu.V[secondRegister] {
+		if cpu.V[firstRegister] == cpu.V[secondRegister] {
 			cpu.PC += 2
 		}
 
+		// set register
+	case 0x6000:
+		register := int((opCode & 0x0F00) >> 8)
+		registerValue := opCode & 0x00FF
+		cpu.V[register] = byte(registerValue)
+
+		// Add to register
+	case 0x7000:
+		register := int((opCode & 0x0F00) >> 8)
+		valueToAdd := opCode & 0x00FF
+		cpu.V[register] += byte(valueToAdd)
+
+	// Set I
+	case 0xA000:
+		cpu.I = opCode & 0x0FFF
+
 	default:
 		return errors.New("unsupported opcode")
+	}
+
+	return nil
+}
+
+func (cpu *CPU) handleSpecialCodes(opCode uint16) error {
+	switch opCode {
+	// return from subroutine
+	case 0x00EE:
+		cpu.PC = cpu.Stack[cpu.SP]
+		cpu.SP--
+
+	default:
+		return errors.New("unsupported special code")
 	}
 
 	return nil
