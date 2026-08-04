@@ -309,3 +309,117 @@ func TestExecuteUnknownSpecialCode(t *testing.T) {
 		t.Fatalf("expected error for unknown code")
 	}
 }
+
+func TestExecuteWriteIntoRegisterFromAnotherRegister(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x44
+	cpu.V[11] = 0x40
+
+	err := cpu.Execute(0x8AB0)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x40 {
+		t.Fatalf("expected cpu.V[10] to be 0x40, got 0x%X instead", cpu.V[10])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterOROperation(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x44
+	cpu.V[11] = 0x40
+
+	err := cpu.Execute(0x8AB1)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x44 {
+		t.Fatalf("expected cpu.V[10] to be 0x44, got 0x%X instead", cpu.V[10])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterANDOperation(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x44
+	cpu.V[11] = 0x40
+
+	err := cpu.Execute(0x8AB2)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x40 {
+		t.Fatalf("expected cpu.V[10] to be 0x40, got 0x%X instead", cpu.V[10])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterXOROperation(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x44
+	cpu.V[11] = 0x40
+
+	err := cpu.Execute(0x8AB3)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x04 {
+		t.Fatalf("expected cpu.V[10] to be 0x04, got 0x%X instead", cpu.V[10])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterAddOperation(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x30
+	cpu.V[11] = 0x10
+
+	err := cpu.Execute(0x8AB4)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x40 {
+		t.Fatalf("expected cpu.V[10] to be 0x40, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x00 {
+		t.Fatalf("expected cpu.V[15] to be 0x00, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterAddOperationWithOverflow(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0xF0
+	cpu.V[11] = 0x20
+
+	err := cpu.Execute(0x8AB4)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x10 {
+		t.Fatalf("expected cpu.V[10] to be 0x40, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x01 {
+		t.Fatalf("expected cpu.V[15] to be 0x01 because of overflow, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteUnknownSubCommandForRegisterOperation(t *testing.T) {
+	cpu := NewCPU()
+
+	err := cpu.Execute(0x8AB8)
+
+	if err == nil {
+		t.Fatal("Expected an error for unknown register operation")
+	}
+}

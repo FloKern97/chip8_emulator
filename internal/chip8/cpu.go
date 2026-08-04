@@ -111,6 +111,13 @@ func (cpu *CPU) Execute(opCode uint16) error {
 		valueToAdd := opCode & 0x00FF
 		cpu.V[register] += byte(valueToAdd)
 
+	case 0x8000:
+		firstRegister := int((opCode & 0x0F00) >> 8)
+		secondRegister := int((opCode & 0x0F0) >> 4)
+		lastBitCommand := int(opCode & 0x000F)
+
+		return cpu.handleSubCommand(firstRegister, secondRegister, lastBitCommand)
+
 	// Set I
 	case 0xA000:
 		cpu.I = opCode & 0x0FFF
@@ -131,6 +138,44 @@ func (cpu *CPU) handleSpecialCodes(opCode uint16) error {
 
 	default:
 		return errors.New("unsupported special code")
+	}
+
+	return nil
+}
+
+func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitCommand int) error {
+	switch lastBitCommand {
+	case 0:
+		cpu.V[firstRegister] = cpu.V[secondRegister]
+	
+	// OR operation 
+	case 1:
+		cpu.V[firstRegister] = cpu.V[firstRegister] | cpu.V[secondRegister]
+	
+	// AND operation
+	case 2:
+		cpu.V[firstRegister] = cpu.V[firstRegister] & cpu.V[secondRegister]
+
+	// XOR operation
+	case 3:
+		cpu.V[firstRegister] = cpu.V[firstRegister] ^ cpu.V[secondRegister]
+	
+	// Add operation
+	case 4:
+		firstRegisterValue := uint16(cpu.V[firstRegister])
+		secondRegisterValue := uint16(cpu.V[secondRegister])
+		sum := firstRegisterValue + secondRegisterValue
+
+		cpu.V[firstRegister] = byte(sum)
+
+		if sum > 0xFF {
+			cpu.V[15] = 1
+		} else {
+			cpu.V[15] = 0
+		}
+	// TODO add remaining cases 
+	default:
+		return errors.New("unsupported subcommand")
 	}
 
 	return nil
