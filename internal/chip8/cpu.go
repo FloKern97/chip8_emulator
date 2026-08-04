@@ -75,10 +75,32 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 		// skip
 	case 0x3000:
-		register := int((opCode & 0xF00) >> 8)
+		register := int((opCode & 0x0F00) >> 8)
 		value := opCode & 0x00FF
 
 		if cpu.V[register] == byte(value) {
+			cpu.PC += 2
+		}
+
+		// skip if value in cpu.V[N] is not equal to given value
+	case 0x4000:
+		register := int((opCode & 0x0F00) >> 8)
+		value := opCode & 0x00FF
+
+		if cpu.V[register] != byte(value) {
+			cpu.PC += 2
+		}
+
+	case 0x5000:
+		firstRegister := int((opCode & 0x0F00) >> 8)
+		secondRegister := int((opCode & 0x00F0) >> 4)
+		lastBit := opCode & 0x000F
+
+		if lastBit != 0 {
+			return errors.New("last bit of the opcode must be 0 for this operation")
+		}
+
+		if cpu.V[firstRegister] != cpu.V[secondRegister] {
 			cpu.PC += 2
 		}
 

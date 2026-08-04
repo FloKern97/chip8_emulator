@@ -186,3 +186,71 @@ func TestExecuteNoSkip(t *testing.T) {
 		t.Fatalf("cpu.PC has unexpected value, expected 0x202, got 0x%X", cpu.PC)
 	}
 }
+
+func TestExecuteSkipIfValueIsNotEqual(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x202
+	cpu.V[10] = 0x23
+
+	err := cpu.Execute(0x4A05)
+
+	if err != nil {
+		t.Fatalf("unexpected error while executing opcode: %v", err)
+	}
+
+	if cpu.PC != 0x204 {
+		t.Fatalf("cpu.PC has unexpected value, expected 0x204, got 0x%X", cpu.PC)
+	}
+}
+
+func TestExecuteNoSkipIfValueIsEqual(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x202
+	cpu.V[10] = 0x05
+
+	err := cpu.Execute(0x4A05)
+
+	if err != nil {
+		t.Fatalf("unexpected error while executing opcode: %v", err)
+	}
+
+	if cpu.PC != 0x202 {
+		t.Fatalf("cpu.PC has unexpected value, expected 0x202, got 0x%X", cpu.PC)
+	}
+}
+
+func TestExecuteNoSkipForMultipleRegisters(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x202
+
+	cpu.V[9] = 0x34
+	cpu.V[10] = 0x34
+
+	err := cpu.Execute(0x59A0)
+
+	if err != nil {
+		t.Fatal("an error occurred while checking multiple registers for the same value")
+	}
+
+	if cpu.PC != 0x202 {
+		t.Fatalf("expected PC to be 0x202 got 0x%X instead", cpu.PC)
+	}
+}
+
+func TestExecuteSkipForMultipleRegisters(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x202
+
+	cpu.V[9] = 0x33
+	cpu.V[10] = 0x34
+
+	err := cpu.Execute(0x59A0)
+
+	if err != nil {
+		t.Fatal("an error occurred while checking multiple registers for the same value")
+	}
+
+	if cpu.PC != 0x204 {
+		t.Fatalf("expected PC to be 0x204 got 0x%X instead", cpu.PC)
+	}
+}
