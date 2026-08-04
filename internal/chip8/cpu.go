@@ -59,7 +59,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 		// set register
 	case 0x6000:
-		register := int((opCode & 0x0F00)) >> 8
+		register := int((opCode & 0x0F00) >> 8)
 		registerValue := opCode & 0x00FF
 		cpu.V[register] = byte(registerValue)
 
@@ -68,6 +68,10 @@ func (cpu *CPU) Execute(opCode uint16) error {
 		register := int((opCode & 0x0F00) >> 8)
 		valueToAdd := opCode & 0x00FF
 		cpu.V[register] += byte(valueToAdd)
+		
+		// Set I
+	case 0xA000:
+		cpu.I = opCode & 0x0FFF
 	default:
 		return errors.New("unsupported opcode")
 	}

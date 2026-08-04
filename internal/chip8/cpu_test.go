@@ -74,7 +74,7 @@ func TestFetchUInt16OpCode(t *testing.T) {
 	err := cpu.LoadROM(rom)
 
 	if err != nil {
-		t.Fatal("An error occurred while loading the ROM.")
+		t.Fatal("an error occurred while loading the ROM.")
 	}
 
 	opCode := cpu.Fetch()
@@ -84,7 +84,7 @@ func TestFetchUInt16OpCode(t *testing.T) {
 	}
 
 	if cpu.PC != 0x202 {
-		t.Fatal("PC was not set correctly after fetching the opCode.")
+		t.Fatal("pc was not set correctly after fetching the opCode.")
 	}
 }
 
@@ -94,11 +94,11 @@ func TestExecuteJump(t *testing.T) {
 	jumpErr := cpu.Execute(0x1234)
 
 	if jumpErr != nil {
-		t.Fatal("An error occurred while executing the jump.")
+		t.Fatal("an error occurred while executing the jump.")
 	}
 
 	if cpu.PC != 0x234 {
-		t.Fatalf("The new PC address was calculated incorrectly. Expected 0x234, got 0x%X", cpu.PC)
+		t.Fatalf("the new PC address was calculated incorrectly. Expected 0x234, got 0x%X", cpu.PC)
 	}
 }
 
@@ -118,7 +118,7 @@ func TestExecuteSetRegister(t *testing.T) {
 	err := cpu.Execute(0x6A05)
 
 	if err != nil {
-		t.Fatal("An error occurred while trying to write into the register.")
+		t.Fatal("an error occurred while trying to write into the register.")
 	}
 
 	if cpu.V[10] != 0x05 {
@@ -133,10 +133,24 @@ func TestExecuteAddToRegister(t *testing.T) {
 	err := cpu.Execute(0x7913)
 
 	if err != nil {
-		t.Fatal("An error occurred while trying to write into the register.")
+		t.Fatal("an error occurred while trying to write into the register.")
 	}
 
 	if cpu.V[9] != 0x18 {
 		t.Fatalf("expected V[9] to be 0x18, got 0x%X", cpu.V[9])
+	}
+}
+
+func TestExecuteWriteToI(t *testing.T) {
+	cpu := NewCPU()
+
+	err := cpu.Execute(0xA456)
+
+	if err != nil {
+		t.Fatal("an error occurred while trying to write into I.")
+	}
+
+	if cpu.I != 0x456 {
+		t.Fatalf("expected cpu.I to be 0x456 got 0x%X", cpu.I)
 	}
 }
