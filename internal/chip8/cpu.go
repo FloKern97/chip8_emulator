@@ -53,11 +53,23 @@ func (cpu *CPU) Fetch() uint16 {
 
 func (cpu *CPU) Execute(opCode uint16) error {
 	switch opCode & 0xF000 {
+	// jump
 	case 0x1000:
 		cpu.PC = opCode & 0x0FFF
 
+		// set register
+	case 0x6000:
+		register := int((opCode & 0x0F00)) >> 8
+		registerValue := opCode & 0x00FF
+		cpu.V[register] = byte(registerValue)
+
+		// Add to register
+	case 0x7000:
+		register := int((opCode & 0x0F00) >> 8)
+		valueToAdd := opCode & 0x00FF
+		cpu.V[register] += byte(valueToAdd)
 	default:
-		return errors.New("unsupported Opcode")
+		return errors.New("unsupported opcode")
 	}
 
 	return nil

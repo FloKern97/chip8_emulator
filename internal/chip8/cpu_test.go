@@ -111,3 +111,32 @@ func TestExecuteUnknownOpCode(t *testing.T) {
 		t.Fatal("0xFFFF should be an unknown Opcode and cause an error.")
 	}
 }
+
+func TestExecuteSetRegister(t *testing.T) {
+	cpu := NewCPU()
+
+	err := cpu.Execute(0x6A05)
+
+	if err != nil {
+		t.Fatal("An error occurred while trying to write into the register.")
+	}
+
+	if cpu.V[10] != 0x05 {
+		t.Fatalf("expected V[10] to be 0x05, got 0x%X", cpu.V[10])
+	}
+}
+
+func TestExecuteAddToRegister(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[9] = 0x05
+
+	err := cpu.Execute(0x7913)
+
+	if err != nil {
+		t.Fatal("An error occurred while trying to write into the register.")
+	}
+
+	if cpu.V[9] != 0x18 {
+		t.Fatalf("expected V[9] to be 0x18, got 0x%X", cpu.V[9])
+	}
+}
