@@ -154,3 +154,35 @@ func TestExecuteWriteToI(t *testing.T) {
 		t.Fatalf("expected cpu.I to be 0x456 got 0x%X", cpu.I)
 	}
 }
+
+func TestExecuteSkip(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x202
+	cpu.V[10] = 0x23
+
+	err := cpu.Execute(0x3A23)
+
+	if err != nil {
+		t.Fatalf("an error occurred while processing an opcode")
+	}
+
+	if cpu.PC != 0x204 {
+		t.Fatalf("cpu.PC has unexpected value, expected 0x204, got 0x%X", cpu.PC)
+	}
+}
+
+func TestExecuteNoSkip(t *testing.T) {
+	cpu := NewCPU()
+	cpu.PC = 0x202
+	cpu.V[10] = 0x23
+
+	err := cpu.Execute(0x3A05)
+
+	if err != nil {
+		t.Fatalf("unexpected error while executing opcode: %v", err)
+	}
+
+	if cpu.PC != 0x202 {
+		t.Fatalf("cpu.PC has unexpected value, expected 0x202, got 0x%X", cpu.PC)
+	}
+}

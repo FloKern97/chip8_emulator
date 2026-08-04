@@ -68,10 +68,20 @@ func (cpu *CPU) Execute(opCode uint16) error {
 		register := int((opCode & 0x0F00) >> 8)
 		valueToAdd := opCode & 0x00FF
 		cpu.V[register] += byte(valueToAdd)
-		
+
 		// Set I
 	case 0xA000:
 		cpu.I = opCode & 0x0FFF
+
+		// skip
+	case 0x3000:
+		register := int((opCode & 0xF00) >> 8)
+		value := opCode & 0x00FF
+
+		if cpu.V[register] == byte(value) {
+			cpu.PC += 2
+		}
+
 	default:
 		return errors.New("unsupported opcode")
 	}
