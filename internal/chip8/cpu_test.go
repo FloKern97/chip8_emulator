@@ -414,6 +414,162 @@ func TestExecuteWriteIntoRegisterFromAnotherRegisterAddOperationWithOverflow(t *
 	}
 }
 
+func TestExecuteWriteIntoRegisterFromAnotherRegisterSubtractOperation(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x30
+	cpu.V[11] = 0x10
+
+	err := cpu.Execute(0x8AB5)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x20 {
+		t.Fatalf("expected cpu.V[10] to be 0x20, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x01 {
+		t.Fatalf("expected cpu.V[15] to be 0x01, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterSubtractOperationWithBorrow(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x10
+	cpu.V[11] = 0x20
+
+	err := cpu.Execute(0x8AB5)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0xF0 {
+		t.Fatalf("expected cpu.V[10] to be 0xF0, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x00 {
+		t.Fatalf("expected cpu.V[15] to be 0x00 because of Borrow, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterSubtractOperationCode7(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x10
+	cpu.V[11] = 0x30
+
+	err := cpu.Execute(0x8AB7)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x20 {
+		t.Fatalf("expected cpu.V[10] to be 0x20, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x01 {
+		t.Fatalf("expected cpu.V[15] to be 0x01, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteWriteIntoRegisterFromAnotherRegisterSubtractOperationWithBorrowCode7(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x20
+	cpu.V[11] = 0x10
+
+	err := cpu.Execute(0x8AB7)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0xF0 {
+		t.Fatalf("expected cpu.V[10] to be 0xF0, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x00 {
+		t.Fatalf("expected cpu.V[15] to be 0x00 because of Borrow, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteCode8AB6ShiftValue(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x20
+
+	err := cpu.Execute(0x8AB6)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x10 {
+		t.Fatalf("expected cpu.V[10] to be 0x10, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x00 {
+		t.Fatalf("expected cpu.V[15] to be 0x00, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteCode8AB6ShiftValueLowestBitBeingOne(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x21
+
+	err := cpu.Execute(0x8AB6)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x10 {
+		t.Fatalf("expected cpu.V[10] to be 0x10, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x01 {
+		t.Fatalf("expected cpu.V[15] to be 0x00 because of lowest bit being 1, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteCode8ABEShiftValue(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x20
+
+	err := cpu.Execute(0x8ABE)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x40 {
+		t.Fatalf("expected cpu.V[10] to be 0x40, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x00 {
+		t.Fatalf("expected cpu.V[15] to be 0x00 because of highest bit being 1, got 0x%X instead", cpu.V[15])
+	}
+}
+
+func TestExecuteCode8ABEShiftValueHighestBitBeingOne(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x81
+
+	err := cpu.Execute(0x8ABE)
+
+	if err != nil {
+		t.Fatal("an error occurred while writing into register using a subcommand")
+	}
+
+	if cpu.V[10] != 0x02 {
+		t.Fatalf("expected cpu.V[10] to be 0x02, got 0x%X instead", cpu.V[10])
+	}
+
+	if cpu.V[15] != 0x01 {
+		t.Fatalf("expected cpu.V[15] to be 0x00 because of highest bit being 1, got 0x%X instead", cpu.V[15])
+	}
+}
+
 func TestExecuteUnknownSubCommandForRegisterOperation(t *testing.T) {
 	cpu := NewCPU()
 

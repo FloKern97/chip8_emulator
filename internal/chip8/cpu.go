@@ -60,6 +60,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 	case 0x1000:
 		cpu.PC = opCode & 0x0FFF
 
+		// Jumping to address for subroutine
 	case 0x2000:
 		subRoutineAddress := opCode & 0x0FFF
 		cpu.Stack[cpu.SP] = cpu.PC
@@ -111,6 +112,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 		valueToAdd := opCode & 0x00FF
 		cpu.V[register] += byte(valueToAdd)
 
+		// Register operations
 	case 0x8000:
 		firstRegister := int((opCode & 0x0F00) >> 8)
 		secondRegister := int((opCode & 0x0F0) >> 4)
@@ -147,11 +149,11 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 	switch lastBitCommand {
 	case 0:
 		cpu.V[firstRegister] = cpu.V[secondRegister]
-	
-	// OR operation 
+
+	// OR operation
 	case 1:
 		cpu.V[firstRegister] = cpu.V[firstRegister] | cpu.V[secondRegister]
-	
+
 	// AND operation
 	case 2:
 		cpu.V[firstRegister] = cpu.V[firstRegister] & cpu.V[secondRegister]
@@ -159,7 +161,7 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 	// XOR operation
 	case 3:
 		cpu.V[firstRegister] = cpu.V[firstRegister] ^ cpu.V[secondRegister]
-	
+
 	// Add operation
 	case 4:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
@@ -173,7 +175,55 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 		} else {
 			cpu.V[15] = 0
 		}
-	// TODO add remaining cases 
+	
+	// Subtract operation (VX = VX -VY)
+	case 5:
+		firstRegisterValue := uint16(cpu.V[firstRegister])
+		secondRegisterValue := uint16(cpu.V[secondRegister])
+		cpu.V[firstRegister] = byte(firstRegisterValue - secondRegisterValue)
+
+		if firstRegisterValue < secondRegisterValue {
+			cpu.V[15] = 0
+		} else {
+			cpu.V[15] = 1
+		}
+
+	// Right Bit-shift command	
+	case 6:
+		firstRegisterValue := uint16(cpu.V[firstRegister])
+		if firstRegisterValue & 0x01 == 0x01 {
+			cpu.V[15] = 1
+			
+		} else {
+			cpu.V[15] = 0
+		}
+		firstRegisterValue = firstRegisterValue >> 1
+		cpu.V[firstRegister] = byte(firstRegisterValue)
+
+	// Subtract operation (VX = VY - VX)
+	case 7:
+		firstRegisterValue := uint16(cpu.V[firstRegister])
+		secondRegisterValue := uint16(cpu.V[secondRegister])
+		cpu.V[firstRegister] = byte(secondRegisterValue - firstRegisterValue)
+
+		if secondRegisterValue < firstRegisterValue {
+			cpu.V[15] = 0
+		} else {
+			cpu.V[15] = 1
+		}
+
+	// Left Bit-shift command	
+	case 14:
+		firstRegisterValue := uint16(cpu.V[firstRegister])
+		if firstRegisterValue & 0x80 == 0x80 {
+			cpu.V[15] = 1
+			
+		} else {
+			cpu.V[15] = 0
+		}
+		firstRegisterValue = firstRegisterValue << 1
+		cpu.V[firstRegister] = byte(firstRegisterValue)
+	// TODO add remaining cases
 	default:
 		return errors.New("unsupported subcommand")
 	}
