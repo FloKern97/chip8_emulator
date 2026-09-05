@@ -9,6 +9,8 @@ const (
 	registers    = 16
 	stackSize    = 16
 	byteSize     = 8
+	fontStart = 0x050
+	fontSpriteSize = 5
 )
 
 type CPU struct {
@@ -331,43 +333,57 @@ func (cpu *CPU) handleSkipForUnpressedButton(opCode uint16) {
 }
 
 func (cpu *CPU) handleTimerCodes(opCode uint16) error {
+	register := cpu.readFirstRegisterFromOpCode(opCode)
 	switch opCode & 0x00FF {
+	// FX0A: wait for a pressed key and store its number in VX.
+	case 0x0A:
+		for key, pressed := range cpu.Keys {
+			if pressed {
+				cpu.V[register] = byte(key)
+				return nil
+			}
+		}
+
+		cpu.PC -= 2
 
 	// Reading from Delay Timer: VX = Delay Timer
 	case 0x07:
-		registerToWrite := cpu.readFirstRegisterFromOpCode(opCode)
-		cpu.V[registerToWrite] = cpu.Delay
-
+		cpu.V[register] = cpu.Delay
 	// Setting Delay Timer: Delay = VX
 	case 0x15:
-		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
-		cpu.Delay = cpu.V[registerToRead]
-
+		cpu.Delay = cpu.V[register]
 	// Setting sound: cpu.sound = VX
 	case 0x18:
-		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
-		cpu.Sound = cpu.V[registerToRead]
+		cpu.Sound = cpu.V[register]
 
 	case 0x1E:
-		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
-
-		cpu.I += uint16(cpu.V[registerToRead])
+		cpu.I += uint16(cpu.V[register])
 
 	case 0x55:
-		register := cpu.readFirstRegisterFromOpCode(opCode)
-
 		for index := 0; index <= register; index++ {
 			memoryIndex := cpu.I + uint16(index)
 			cpu.Memory[memoryIndex] = cpu.V[index]
 		}
 
 	case 0x65:
-		register := cpu.readFirstRegisterFromOpCode(opCode)
-
 		for index := 0; index <= register; index++ {
 			memoryIndex := cpu.I + uint16(index)
 			cpu.V[index] = cpu.Memory[memoryIndex]
 		}
+
+	case 0x33:
+		value := cpu.V[register]
+		firstDigit := value / 100
+		secondDigit := (value % 100) / 10
+		thirdDigit := value % 10
+
+		cpu.Memory[cpu.I] = firstDigit
+		cpu.Memory[cpu.I + 1] = secondDigit
+		cpu.Memory[cpu.I + 2] = thirdDigit
+	
+	case 0x29:
+		digit := cpu.V[register]
+		cpu.I = fontStart + uint16(digit) * fontSpriteSize
 
 	default:
 		return errors.New("unsupported timer opcode")

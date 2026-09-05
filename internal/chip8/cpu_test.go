@@ -900,3 +900,81 @@ func TestExecuteLoadRegistersFromMemory(t *testing.T) {
 		t.Fatalf("expected I to remain 0x300, got 0x%X", cpu.I)
 	}
 }
+
+func TestExecuteStoreBCDInMemory(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.V[10] = 231
+
+	err := cpu.Execute(0xFA33)
+
+	if err != nil {
+		t.Fatalf("unexpected error while storing BCD in memory: %v", err)
+	}
+
+	if cpu.Memory[0x300] != 2 {
+		t.Fatalf("expected Memory[0x300] to be 2, got %d", cpu.Memory[0x300])
+	}
+
+	if cpu.Memory[0x301] != 3 {
+		t.Fatalf("expected Memory[0x301] to be 3, got %d", cpu.Memory[0x301])
+	}
+
+	if cpu.Memory[0x302] != 1 {
+		t.Fatalf("expected Memory[0x302] to be 1, got %d", cpu.Memory[0x302])
+	}
+}
+
+func TestExecuteStoreBCDInMemoryWithLeadingZero(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.V[10] = 42
+
+	err := cpu.Execute(0xFA33)
+
+	if err != nil {
+		t.Fatalf("unexpected error while storing BCD in memory: %v", err)
+	}
+
+	if cpu.Memory[0x300] != 0 {
+		t.Fatalf("expected Memory[0x300] to be 0, got %d", cpu.Memory[0x300])
+	}
+
+	if cpu.Memory[0x301] != 4 {
+		t.Fatalf("expected Memory[0x301] to be 4, got %d", cpu.Memory[0x301])
+	}
+
+	if cpu.Memory[0x302] != 2 {
+		t.Fatalf("expected Memory[0x302] to be 2, got %d", cpu.Memory[0x302])
+	}
+}
+
+func TestExecuteSetIToFontAddressForZero(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0x0
+
+	err := cpu.Execute(0xFA29)
+
+	if err != nil {
+		t.Fatalf("unexpected error while setting I to font address: %v", err)
+	}
+
+	if cpu.I != 0x050 {
+		t.Fatalf("expected I to be 0x050, got 0x%X", cpu.I)
+	}
+}
+
+func TestExecuteSetIToFontAddressForA(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[10] = 0xA
+
+	err := cpu.Execute(0xFA29)
+
+	if err != nil {
+		t.Fatalf("unexpected error while setting I to font address: %v", err)
+	}
+
+	if cpu.I != 0x082 {
+		t.Fatalf("expected I to be 0x082, got 0x%X", cpu.I)
+	}
+}
