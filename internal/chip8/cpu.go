@@ -93,7 +93,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 		lastBit := opCode & 0x000F
 
 		if lastBit != 0 {
-			return errors.New("last bit of the opcode must be 0 for this operation")
+			return errors.New("last bit of the opcode must be 0 for this operation (e.g. 0x5AB0)")
 		}
 
 		if cpu.V[firstRegister] == cpu.V[secondRegister] {
@@ -120,6 +120,20 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 		return cpu.handleSubCommand(firstRegister, secondRegister, lastBitCommand)
 
+		// Skip next instruction if V[X] != V[Y]
+	case 0x9000:
+		lastBit := opCode & 0x000F
+
+		if lastBit != 0 {
+			return errors.New("The last bit must be zero for this operation (e.g. 0x9AB0)")
+		}
+
+		firstRegister := int((opCode & 0x0F00) >> 8)
+		secondRegister := int((opCode & 0x0F0) >> 4)
+
+		if cpu.V[firstRegister] != cpu.V[secondRegister] {
+			cpu.PC += 2
+		}
 	// Set I
 	case 0xA000:
 		cpu.I = opCode & 0x0FFF
@@ -175,7 +189,7 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 		} else {
 			cpu.V[15] = 0
 		}
-	
+
 	// Subtract operation (VX = VX -VY)
 	case 5:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
@@ -188,12 +202,12 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 			cpu.V[15] = 1
 		}
 
-	// Right Bit-shift command	
+	// Right Bit-shift command
 	case 6:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
-		if firstRegisterValue & 0x01 == 0x01 {
+		if firstRegisterValue&0x01 == 0x01 {
 			cpu.V[15] = 1
-			
+
 		} else {
 			cpu.V[15] = 0
 		}
@@ -212,12 +226,12 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 			cpu.V[15] = 1
 		}
 
-	// Left Bit-shift command	
+	// Left Bit-shift command
 	case 14:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
-		if firstRegisterValue & 0x80 == 0x80 {
+		if firstRegisterValue&0x80 == 0x80 {
 			cpu.V[15] = 1
-			
+
 		} else {
 			cpu.V[15] = 0
 		}
