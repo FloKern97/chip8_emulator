@@ -160,16 +160,16 @@ func (cpu *CPU) Execute(opCode uint16) error {
 	case 0xD000:
 		cpu.handleDisplayDraw(opCode)
 
-	// EX9E and EXA1: Skip next command if button is pressed (EX9E) or if it is not pressed (EXA1) 	
+	// EX9E and EXA1: Skip next command if button is pressed (EX9E) or if it is not pressed (EXA1)
 	case 0xE000:
-		if opCode & 0x00FF == 0xA1 {
+		if opCode&0x00FF == 0xA1 {
 			cpu.handleSkipForUnpressedButton(opCode)
 		}
 
-		if opCode & 0x00FF == 0x9E {
+		if opCode&0x00FF == 0x9E {
 			cpu.handleSkipForPressedButton(opCode)
 		}
-	
+
 	case 0xF000:
 		return cpu.handleTimerCodes(opCode)
 
@@ -214,7 +214,7 @@ func (cpu *CPU) handleDisplayDraw(opCode uint16) {
 		for pixelColumn := 0; pixelColumn < byteSize; pixelColumn++ {
 			mask := byte(0x80 >> pixelColumn)
 
-			if spriteByte & mask != 0 {
+			if spriteByte&mask != 0 {
 				wasActivePixel := cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
 				cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn] = !cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
 
@@ -315,7 +315,7 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 func (cpu *CPU) handleSkipForPressedButton(opCode uint16) {
 	register := cpu.readFirstRegisterFromOpCode(opCode)
 	key := cpu.V[register]
-	
+
 	if cpu.Keys[int(key)] {
 		cpu.PC += 2
 	}
@@ -324,7 +324,7 @@ func (cpu *CPU) handleSkipForPressedButton(opCode uint16) {
 func (cpu *CPU) handleSkipForUnpressedButton(opCode uint16) {
 	register := cpu.readFirstRegisterFromOpCode(opCode)
 	key := cpu.V[register]
-	
+
 	if !cpu.Keys[int(key)] {
 		cpu.PC += 2
 	}
@@ -332,12 +332,12 @@ func (cpu *CPU) handleSkipForUnpressedButton(opCode uint16) {
 
 func (cpu *CPU) handleTimerCodes(opCode uint16) error {
 	switch opCode & 0x00FF {
-	
-	// Reading Delay Timer: VX = Delay Timer
+
+	// Reading from Delay Timer: VX = Delay Timer
 	case 0x07:
 		registerToWrite := cpu.readFirstRegisterFromOpCode(opCode)
 		cpu.V[registerToWrite] = cpu.Delay
-	
+
 	// Setting Delay Timer: Delay = VX
 	case 0x15:
 		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
@@ -346,10 +346,31 @@ func (cpu *CPU) handleTimerCodes(opCode uint16) error {
 	// Setting sound: cpu.sound = VX
 	case 0x18:
 		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
-		cpu.Sound = byte(registerToRead)
+		cpu.Sound = cpu.V[registerToRead]
+
+	case 0x1E:
+		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
+
+		cpu.I += uint16(cpu.V[registerToRead])
+
+	case 0x55:
+		register := cpu.readFirstRegisterFromOpCode(opCode)
+
+		for index := 0; index <= register; index++ {
+			memoryIndex := cpu.I + uint16(index)
+			cpu.Memory[memoryIndex] = cpu.V[index]
+		}
+
+	case 0x65:
+		register := cpu.readFirstRegisterFromOpCode(opCode)
+
+		for index := 0; index <= register; index++ {
+			memoryIndex := cpu.I + uint16(index)
+			cpu.V[index] = cpu.Memory[memoryIndex]
+		}
 
 	default:
-        return errors.New("unsupported timer opcode")
+		return errors.New("unsupported timer opcode")
 	}
 
 	return nil

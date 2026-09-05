@@ -766,3 +766,137 @@ func TestExecuteSkipIfKeyIsNotPressed(t *testing.T) {
 		t.Fatalf("Expected PC to be 0x204 after skipping because button was not pressed")
 	}
 }
+
+func TestExecuteTimerFunctionReadFromDelayTimer(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.Delay = 5
+
+	err := cpu.Execute(0xFA07)
+
+	if err != nil {
+		t.Fatalf("An error occurred while reading from CPU delay, %v", err)
+	}
+
+	if cpu.V[10] != 5 {
+		t.Fatalf("Expected V[10] to be 5, got %X instead", cpu.V[10])
+	}
+}
+
+func TestExecuteTimerFunctionSetDelayTimer(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.V[10] = 5
+
+	err := cpu.Execute(0xFA15)
+
+	if err != nil {
+		t.Fatalf("An error occurred while setting CPU delay, %v", err)
+	}
+
+	if cpu.Delay != 5 {
+		t.Fatalf("Expected Delay to be 5, got %X instead", cpu.Delay)
+	}
+}
+
+func TestExecuteTimerFunctionSetSoundFromRegister(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.V[10] = 5
+
+	err := cpu.Execute(0xFA18)
+
+	if err != nil {
+		t.Fatalf("An error occurred while setting CPU sound, %v", err)
+	}
+
+	if cpu.Sound != 5 {
+		t.Fatalf("Expected CPU sound to be 5, got %X instead", cpu.Sound)
+	}
+}
+
+func TestExecuteTimerFunctionSetIFromRegister(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.V[10] = 5
+
+	err := cpu.Execute(0xFA1E)
+
+	if err != nil {
+		t.Fatalf("An error occurred while setting CPU.I, %v", err)
+	}
+
+	if cpu.I != 5 {
+		t.Fatalf("Expected CPU.I to be 5, got %X instead", cpu.I)
+	}
+}
+
+func TestExecuteStoreRegistersInMemory(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.V[0] = 0x10
+	cpu.V[1] = 0x11
+	cpu.V[2] = 0x12
+	cpu.V[3] = 0x13
+
+	err := cpu.Execute(0xF355)
+
+	if err != nil {
+		t.Fatalf("unexpected error while storing registers in memory: %v", err)
+	}
+
+	if cpu.Memory[0x300] != 0x10 {
+		t.Fatalf("expected Memory[0x300] to be 0x10, got 0x%X", cpu.Memory[0x300])
+	}
+
+	if cpu.Memory[0x301] != 0x11 {
+		t.Fatalf("expected Memory[0x301] to be 0x11, got 0x%X", cpu.Memory[0x301])
+	}
+
+	if cpu.Memory[0x302] != 0x12 {
+		t.Fatalf("expected Memory[0x302] to be 0x12, got 0x%X", cpu.Memory[0x302])
+	}
+
+	if cpu.Memory[0x303] != 0x13 {
+		t.Fatalf("expected Memory[0x303] to be 0x13, got 0x%X", cpu.Memory[0x303])
+	}
+
+	if cpu.I != 0x300 {
+		t.Fatalf("expected I to remain 0x300, got 0x%X", cpu.I)
+	}
+}
+
+func TestExecuteLoadRegistersFromMemory(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.Memory[0x300] = 0x20
+	cpu.Memory[0x301] = 0x21
+	cpu.Memory[0x302] = 0x22
+	cpu.Memory[0x303] = 0x23
+
+	err := cpu.Execute(0xF365)
+
+	if err != nil {
+		t.Fatalf("unexpected error while loading registers from memory: %v", err)
+	}
+
+	if cpu.V[0] != 0x20 {
+		t.Fatalf("expected V[0] to be 0x20, got 0x%X", cpu.V[0])
+	}
+
+	if cpu.V[1] != 0x21 {
+		t.Fatalf("expected V[1] to be 0x21, got 0x%X", cpu.V[1])
+	}
+
+	if cpu.V[2] != 0x22 {
+		t.Fatalf("expected V[2] to be 0x22, got 0x%X", cpu.V[2])
+	}
+
+	if cpu.V[3] != 0x23 {
+		t.Fatalf("expected V[3] to be 0x23, got 0x%X", cpu.V[3])
+	}
+
+	if cpu.I != 0x300 {
+		t.Fatalf("expected I to remain 0x300, got 0x%X", cpu.I)
+	}
+}
