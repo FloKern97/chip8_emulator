@@ -730,3 +730,39 @@ func TestExecuteClearScreen(t *testing.T) {
 		t.Fatal("Expected cpu.Display[0][2] to be false")
 	}
 }
+
+func TestExecuteSkipIfKeyIsPressed(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.PC = 0x202
+	cpu.V[10] = 5
+	cpu.Keys[5] = true
+
+	err := cpu.Execute(0xEA9E)
+
+	if err != nil {
+		t.Fatalf("An error occurred while skipping due to a pressed button, %v", err)
+	}
+
+	if cpu.PC != 0x204 {
+		t.Fatalf("Expected PC to be 0x204 after skipping")
+	}
+}
+
+func TestExecuteSkipIfKeyIsNotPressed(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.PC = 0x202
+	cpu.V[10] = 5
+	cpu.Keys[5] = false
+
+	err := cpu.Execute(0xEAA1)
+
+	if err != nil {
+		t.Fatalf("An error occurred while skipping due to a pressed button, %v", err)
+	}
+
+	if cpu.PC != 0x204 {
+		t.Fatalf("Expected PC to be 0x204 after skipping because button was not pressed")
+	}
+}

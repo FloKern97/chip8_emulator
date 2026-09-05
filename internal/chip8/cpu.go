@@ -21,6 +21,7 @@ type CPU struct {
 	Delay   byte
 	Sound   byte
 	Display [32][64]bool
+	Keys    [16]bool
 }
 
 func NewCPU() *CPU {
@@ -74,7 +75,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 	// 3XNN: skip next instruction if VX equals NN.
 	case 0x3000:
-		register := int((opCode & 0x0F00) >> 8)
+		register := cpu.readFirstRegisterFromOpCode(opCode)
 		value := opCode & 0x00FF
 
 		if cpu.V[register] == byte(value) {
@@ -83,7 +84,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 	// 4XNN: skip next instruction if VX does not equal NN.
 	case 0x4000:
-		register := int((opCode & 0x0F00) >> 8)
+		register := cpu.readFirstRegisterFromOpCode(opCode)
 		value := opCode & 0x00FF
 
 		if cpu.V[register] != byte(value) {
@@ -92,8 +93,8 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 	// 5XY0: skip next instruction if VX equals VY.
 	case 0x5000:
-		firstRegister := int((opCode & 0x0F00) >> 8)
-		secondRegister := int((opCode & 0x00F0) >> 4)
+		firstRegister := cpu.readFirstRegisterFromOpCode(opCode)
+		secondRegister := cpu.readSecondRegisterFromOpCode(opCode)
 		lastBit := opCode & 0x000F
 
 		if lastBit != 0 {
@@ -106,20 +107,20 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 	// 6XNN: set VX to NN.
 	case 0x6000:
-		register := int((opCode & 0x0F00) >> 8)
+		register := cpu.readFirstRegisterFromOpCode(opCode)
 		registerValue := opCode & 0x00FF
 		cpu.V[register] = byte(registerValue)
 
 	// 7XNN: add NN to VX without changing VF.
 	case 0x7000:
-		register := int((opCode & 0x0F00) >> 8)
+		register := cpu.readFirstRegisterFromOpCode(opCode)
 		valueToAdd := opCode & 0x00FF
 		cpu.V[register] += byte(valueToAdd)
 
 	// 8XYN: register operation selected by the final nibble N.
 	case 0x8000:
-		firstRegister := int((opCode & 0x0F00) >> 8)
-		secondRegister := int((opCode & 0x00F0) >> 4)
+		firstRegister := cpu.readFirstRegisterFromOpCode(opCode)
+		secondRegister := cpu.readSecondRegisterFromOpCode(opCode)
 		lastBitCommand := int(opCode & 0x000F)
 
 		return cpu.handleSubCommand(firstRegister, secondRegister, lastBitCommand)
@@ -132,8 +133,8 @@ func (cpu *CPU) Execute(opCode uint16) error {
 			return errors.New("The last bit must be zero for this operation (e.g. 0x9AB0)")
 		}
 
-		firstRegister := int((opCode & 0x0F00) >> 8)
-		secondRegister := int((opCode & 0x00F0) >> 4)
+		firstRegister := cpu.readFirstRegisterFromOpCode(opCode)
+		secondRegister := cpu.readSecondRegisterFromOpCode(opCode)
 
 		if cpu.V[firstRegister] != cpu.V[secondRegister] {
 			cpu.PC += 2
@@ -151,13 +152,26 @@ func (cpu *CPU) Execute(opCode uint16) error {
 	case 0xC000:
 		randomNumber := rand.Int()
 		commandValue := opCode & 0x00FF
-		registerToSet := int((opCode & 0x0F00) >> 8)
+		registerToSet := cpu.readFirstRegisterFromOpCode(opCode)
 
 		cpu.V[registerToSet] = byte(randomNumber) & byte(commandValue)
 
 	// DXYN: draw an N-byte sprite at VX,VY and set VF on collision.
 	case 0xD000:
 		cpu.handleDisplayDraw(opCode)
+
+	// EX9E and EXA1: Skip next command if button is pressed (EX9E) or if it is not pressed (EXA1) 	
+	case 0xE000:
+		if opCode & 0x00FF == 0xA1 {
+			cpu.handleSkipForUnpressedButton(opCode)
+		}
+
+		if opCode & 0x00FF == 0x9E {
+			cpu.handleSkipForPressedButton(opCode)
+		}
+	
+	case 0xF000:
+		return cpu.handleTimerCodes(opCode)
 
 	default:
 		return errors.New("unsupported opcode")
@@ -200,7 +214,7 @@ func (cpu *CPU) handleDisplayDraw(opCode uint16) {
 		for pixelColumn := 0; pixelColumn < byteSize; pixelColumn++ {
 			mask := byte(0x80 >> pixelColumn)
 
-			if spriteByte&mask != 0 {
+			if spriteByte & mask != 0 {
 				wasActivePixel := cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
 				cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn] = !cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
 
@@ -296,4 +310,55 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 	}
 
 	return nil
+}
+
+func (cpu *CPU) handleSkipForPressedButton(opCode uint16) {
+	register := cpu.readFirstRegisterFromOpCode(opCode)
+	key := cpu.V[register]
+	
+	if cpu.Keys[int(key)] {
+		cpu.PC += 2
+	}
+}
+
+func (cpu *CPU) handleSkipForUnpressedButton(opCode uint16) {
+	register := cpu.readFirstRegisterFromOpCode(opCode)
+	key := cpu.V[register]
+	
+	if !cpu.Keys[int(key)] {
+		cpu.PC += 2
+	}
+}
+
+func (cpu *CPU) handleTimerCodes(opCode uint16) error {
+	switch opCode & 0x00FF {
+	
+	// Reading Delay Timer: VX = Delay Timer
+	case 0x07:
+		registerToWrite := cpu.readFirstRegisterFromOpCode(opCode)
+		cpu.V[registerToWrite] = cpu.Delay
+	
+	// Setting Delay Timer: Delay = VX
+	case 0x15:
+		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
+		cpu.Delay = cpu.V[registerToRead]
+
+	// Setting sound: cpu.sound = VX
+	case 0x18:
+		registerToRead := cpu.readFirstRegisterFromOpCode(opCode)
+		cpu.Sound = byte(registerToRead)
+
+	default:
+        return errors.New("unsupported timer opcode")
+	}
+
+	return nil
+}
+
+func (cpu *CPU) readFirstRegisterFromOpCode(opCode uint16) int {
+	return int((opCode & 0x0F00) >> 8)
+}
+
+func (cpu *CPU) readSecondRegisterFromOpCode(opCode uint16) int {
+	return int((opCode & 0x00F0) >> 4)
 }
