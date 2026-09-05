@@ -579,3 +579,154 @@ func TestExecuteUnknownSubCommandForRegisterOperation(t *testing.T) {
 		t.Fatal("Expected an error for unknown register operation")
 	}
 }
+
+func TestExecuteJumpToAddress(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[0] = 0x05
+
+	err := cpu.Execute(0xB300)
+
+	if err != nil {
+		t.Fatal("An error occurred while jumping to address (command 0xBXXX)")
+	}
+
+	if cpu.PC != 0x305 {
+		t.Fatalf("Expected PC to be 0x305 got 0x%X instead", cpu.PC)
+	}
+}
+
+func TestExecuteRandomAndValue(t *testing.T) {
+	cpu := NewCPU()
+
+	err := cpu.Execute(0xCA0F)
+
+	if err != nil {
+		t.Fatalf("unexpected error while executing random opcode: %v", err)
+	}
+
+	if cpu.V[10] > 0x0F {
+		t.Fatalf("expected V[10] to be <= 0x0F, got 0x%X", cpu.V[10])
+	}
+}
+
+func TestExecuteDrawSinglePixel(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.Memory[0x300] = 0b10000000
+	cpu.V[0] = 0
+	cpu.V[1] = 0
+
+	err := cpu.Execute(0xD011)
+
+	if err != nil {
+		t.Fatalf("unexpected error while drawing sprite: %v", err)
+	}
+
+	if !cpu.Display[0][0] {
+		t.Fatal("expected pixel at x=0, y=0 to be on")
+	}
+}
+
+func TestExecuteDrawTwoRows(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.Memory[0x300] = 0b10000000
+	cpu.Memory[0x301] = 0b01000000
+	cpu.V[0] = 0
+	cpu.V[1] = 0
+
+	err := cpu.Execute(0xD012)
+
+	if err != nil {
+		t.Fatalf("unexpected error while drawing sprite: %v", err)
+	}
+
+	if !cpu.Display[0][0] {
+		t.Fatal("expected pixel at x=0, y=0 to be on")
+	}
+
+	if !cpu.Display[1][1] {
+		t.Fatal("expected pixel at x=1, y=1 to be on")
+	}
+}
+
+func TestExecuteDrawMultiplePixels(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.Memory[0x300] = 0b10100000
+	cpu.V[0] = 0
+	cpu.V[1] = 0
+
+	err := cpu.Execute(0xD011)
+
+	if err != nil {
+		t.Fatalf("unexpected error while drawing sprite: %v", err)
+	}
+
+	if !cpu.Display[0][0] {
+		t.Fatal("expected pixel at x=0, y=0 to be on")
+	}
+
+	if !cpu.Display[0][2] {
+		t.Fatal("expected pixel at x=2, y=0 to be on")
+	}
+
+	if cpu.Display[0][1] {
+		t.Fatal("expected pixel at x=1, y=0 to not be on")
+	}
+
+	if cpu.V[15] != 0 {
+		t.Fatal("expected the last register to be 0 because no collision was found")
+	}
+}
+
+func TestExecuteDrawUsesXOR(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.Memory[0x300] = 0b10000000
+	cpu.V[0] = 0
+	cpu.V[1] = 0
+
+	err := cpu.Execute(0xD011)
+	if err != nil {
+		t.Fatalf("unexpected error while drawing sprite: %v", err)
+	}
+
+	err = cpu.Execute(0xD011)
+	if err != nil {
+		t.Fatalf("unexpected error while drawing sprite: %v", err)
+	}
+
+	if cpu.Display[0][0] {
+		t.Fatal("expected pixel at x=0, y=0 to be off after drawing same sprite twice")
+	}
+
+	if cpu.V[15] != 1 {
+		t.Fatal("expected the last register to be 1 due to collision")
+	}
+}
+
+func TestExecuteClearScreen(t *testing.T) {
+	cpu := NewCPU()
+	cpu.Display[0][0] = true
+	cpu.Display[0][1] = true
+	cpu.Display[0][2] = true
+
+	err := cpu.Execute(0x00E0)
+
+	if err != nil {
+		t.Fatalf("unexpected error while clearing screen: %v", err)
+	}
+
+	if cpu.Display[0][0] {
+		t.Fatal("Expected cpu.Display[0][0] to be false")
+	}
+
+	if cpu.Display[0][1] {
+		t.Fatal("Expected cpu.Display[0][1] to be false")
+	}
+
+	if cpu.Display[0][2] {
+		t.Fatal("Expected cpu.Display[0][2] to be false")
+	}
+}

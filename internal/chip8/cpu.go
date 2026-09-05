@@ -1,23 +1,26 @@
 package chip8
 
 import "errors"
+import "math/rand"
 
 const (
 	memorySize   = 4096
 	programStart = 0x200
 	registers    = 16
 	stackSize    = 16
+	byteSize     = 8
 )
 
 type CPU struct {
-	Memory [memorySize]byte
-	V      [registers]byte
-	I      uint16
-	PC     uint16
-	Stack  [stackSize]uint16
-	SP     byte
-	Delay  byte
-	Sound  byte
+	Memory  [memorySize]byte
+	V       [registers]byte
+	I       uint16
+	PC      uint16
+	Stack   [stackSize]uint16
+	SP      byte
+	Delay   byte
+	Sound   byte
+	Display [32][64]bool
 }
 
 func NewCPU() *CPU {
@@ -53,14 +56,15 @@ func (cpu *CPU) Fetch() uint16 {
 
 func (cpu *CPU) Execute(opCode uint16) error {
 	switch opCode & 0xF000 {
-	// special op codes like returning from subroutine
+	// 0NNN/00E0/00EE: special opcodes; inspect the full opcode in handleSpecialCodes.
 	case 0x0000:
 		return cpu.handleSpecialCodes(opCode)
-	// jump
+
+	// 1NNN: jump to address NNN.
 	case 0x1000:
 		cpu.PC = opCode & 0x0FFF
 
-		// Jumping to address for subroutine
+	// 2NNN: call subroutine at NNN and store the return address on the stack.
 	case 0x2000:
 		subRoutineAddress := opCode & 0x0FFF
 		cpu.Stack[cpu.SP] = cpu.PC
@@ -68,7 +72,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 		cpu.PC = subRoutineAddress
 
-		// skip
+	// 3XNN: skip next instruction if VX equals NN.
 	case 0x3000:
 		register := int((opCode & 0x0F00) >> 8)
 		value := opCode & 0x00FF
@@ -77,7 +81,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 			cpu.PC += 2
 		}
 
-		// skip if value in cpu.V[N] is not equal to given value
+	// 4XNN: skip next instruction if VX does not equal NN.
 	case 0x4000:
 		register := int((opCode & 0x0F00) >> 8)
 		value := opCode & 0x00FF
@@ -86,7 +90,7 @@ func (cpu *CPU) Execute(opCode uint16) error {
 			cpu.PC += 2
 		}
 
-		// Compare register values, if not equal -> "skip"
+	// 5XY0: skip next instruction if VX equals VY.
 	case 0x5000:
 		firstRegister := int((opCode & 0x0F00) >> 8)
 		secondRegister := int((opCode & 0x00F0) >> 4)
@@ -100,27 +104,27 @@ func (cpu *CPU) Execute(opCode uint16) error {
 			cpu.PC += 2
 		}
 
-		// set register
+	// 6XNN: set VX to NN.
 	case 0x6000:
 		register := int((opCode & 0x0F00) >> 8)
 		registerValue := opCode & 0x00FF
 		cpu.V[register] = byte(registerValue)
 
-		// Add to register
+	// 7XNN: add NN to VX without changing VF.
 	case 0x7000:
 		register := int((opCode & 0x0F00) >> 8)
 		valueToAdd := opCode & 0x00FF
 		cpu.V[register] += byte(valueToAdd)
 
-		// Register operations
+	// 8XYN: register operation selected by the final nibble N.
 	case 0x8000:
 		firstRegister := int((opCode & 0x0F00) >> 8)
-		secondRegister := int((opCode & 0x0F0) >> 4)
+		secondRegister := int((opCode & 0x00F0) >> 4)
 		lastBitCommand := int(opCode & 0x000F)
 
 		return cpu.handleSubCommand(firstRegister, secondRegister, lastBitCommand)
 
-		// Skip next instruction if V[X] != V[Y]
+	// 9XY0: skip next instruction if VX does not equal VY.
 	case 0x9000:
 		lastBit := opCode & 0x000F
 
@@ -129,14 +133,31 @@ func (cpu *CPU) Execute(opCode uint16) error {
 		}
 
 		firstRegister := int((opCode & 0x0F00) >> 8)
-		secondRegister := int((opCode & 0x0F0) >> 4)
+		secondRegister := int((opCode & 0x00F0) >> 4)
 
 		if cpu.V[firstRegister] != cpu.V[secondRegister] {
 			cpu.PC += 2
 		}
-	// Set I
+	// ANNN: set I to address NNN.
 	case 0xA000:
 		cpu.I = opCode & 0x0FFF
+
+	// BNNN: jump to address NNN plus V0.
+	case 0xB000:
+		opCodeValue := opCode & 0x0FFF
+		cpu.PC = opCodeValue + uint16(cpu.V[0])
+
+	// CXNN: set VX to a random byte masked with NN.
+	case 0xC000:
+		randomNumber := rand.Int()
+		commandValue := opCode & 0x00FF
+		registerToSet := int((opCode & 0x0F00) >> 8)
+
+		cpu.V[registerToSet] = byte(randomNumber) & byte(commandValue)
+
+	// DXYN: draw an N-byte sprite at VX,VY and set VF on collision.
+	case 0xD000:
+		cpu.handleDisplayDraw(opCode)
 
 	default:
 		return errors.New("unsupported opcode")
@@ -147,10 +168,18 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 func (cpu *CPU) handleSpecialCodes(opCode uint16) error {
 	switch opCode {
-	// return from subroutine
+	// 00EE: return from the current subroutine.
 	case 0x00EE:
 		cpu.SP--
 		cpu.PC = cpu.Stack[cpu.SP]
+
+	// 00E0: clear the display.
+	case 0x00E0:
+		for y := 0; y < 32; y++ {
+			for x := 0; x < 64; x++ {
+				cpu.Display[y][x] = false
+			}
+		}
 
 	default:
 		return errors.New("unsupported special code")
@@ -159,24 +188,49 @@ func (cpu *CPU) handleSpecialCodes(opCode uint16) error {
 	return nil
 }
 
+func (cpu *CPU) handleDisplayDraw(opCode uint16) {
+	cpu.V[15] = 0
+	xCoordinate := cpu.V[int((opCode&0x0F00)>>8)]
+	yCoordinate := cpu.V[int((opCode&0x00F0)>>4)]
+	height := opCode & 0x000F
+
+	for spriteRow := 0; spriteRow < int(height); spriteRow++ {
+		spriteByte := cpu.Memory[int(cpu.I)+spriteRow]
+
+		for pixelColumn := 0; pixelColumn < byteSize; pixelColumn++ {
+			mask := byte(0x80 >> pixelColumn)
+
+			if spriteByte&mask != 0 {
+				wasActivePixel := cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
+				cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn] = !cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
+
+				if wasActivePixel {
+					cpu.V[15] = 1
+				}
+			}
+		}
+	}
+}
+
 func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitCommand int) error {
 	switch lastBitCommand {
+	// 8XY0: set VX to the value of VY.
 	case 0:
 		cpu.V[firstRegister] = cpu.V[secondRegister]
 
-	// OR operation
+	// 8XY1: set VX to VX OR VY.
 	case 1:
 		cpu.V[firstRegister] = cpu.V[firstRegister] | cpu.V[secondRegister]
 
-	// AND operation
+	// 8XY2: set VX to VX AND VY.
 	case 2:
 		cpu.V[firstRegister] = cpu.V[firstRegister] & cpu.V[secondRegister]
 
-	// XOR operation
+	// 8XY3: set VX to VX XOR VY.
 	case 3:
 		cpu.V[firstRegister] = cpu.V[firstRegister] ^ cpu.V[secondRegister]
 
-	// Add operation
+	// 8XY4: add VY to VX and set VF if the result overflows one byte.
 	case 4:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
 		secondRegisterValue := uint16(cpu.V[secondRegister])
@@ -190,7 +244,7 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 			cpu.V[15] = 0
 		}
 
-	// Subtract operation (VX = VX -VY)
+	// 8XY5: subtract VY from VX and set VF to 0 if a borrow is needed.
 	case 5:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
 		secondRegisterValue := uint16(cpu.V[secondRegister])
@@ -202,7 +256,7 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 			cpu.V[15] = 1
 		}
 
-	// Right Bit-shift command
+	// 8XY6: shift VX right once and store the old lowest bit in VF.
 	case 6:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
 		if firstRegisterValue&0x01 == 0x01 {
@@ -214,7 +268,7 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 		firstRegisterValue = firstRegisterValue >> 1
 		cpu.V[firstRegister] = byte(firstRegisterValue)
 
-	// Subtract operation (VX = VY - VX)
+	// 8XY7: set VX to VY minus VX and set VF to 0 if a borrow is needed.
 	case 7:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
 		secondRegisterValue := uint16(cpu.V[secondRegister])
@@ -226,7 +280,7 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 			cpu.V[15] = 1
 		}
 
-	// Left Bit-shift command
+	// 8XYE: shift VX left once and store the old highest bit in VF.
 	case 14:
 		firstRegisterValue := uint16(cpu.V[firstRegister])
 		if firstRegisterValue&0x80 == 0x80 {
@@ -237,7 +291,6 @@ func (cpu *CPU) handleSubCommand(firstRegister int, secondRegister int, lastBitC
 		}
 		firstRegisterValue = firstRegisterValue << 1
 		cpu.V[firstRegister] = byte(firstRegisterValue)
-	// TODO add remaining cases
 	default:
 		return errors.New("unsupported subcommand")
 	}
