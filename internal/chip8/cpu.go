@@ -216,7 +216,7 @@ func (cpu *CPU) handleDisplayDraw(opCode uint16) {
 		for pixelColumn := 0; pixelColumn < byteSize; pixelColumn++ {
 			mask := byte(0x80 >> pixelColumn)
 
-			if spriteByte&mask != 0 {
+			if spriteByte & mask != 0 {
 				wasActivePixel := cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
 				cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn] = !cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
 
