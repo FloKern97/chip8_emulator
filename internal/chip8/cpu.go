@@ -399,3 +399,15 @@ func (cpu *CPU) readFirstRegisterFromOpCode(opCode uint16) int {
 func (cpu *CPU) readSecondRegisterFromOpCode(opCode uint16) int {
 	return int((opCode & 0x00F0) >> 4)
 }
+
+func (cpu *CPU) FetchAndExecuteCommand() (uint16, error) {
+	opCode := cpu.Fetch()
+
+	err := cpu.Execute(opCode)
+
+	if err != nil {
+		return opCode, err
+	}
+
+	return opCode, nil
+}
