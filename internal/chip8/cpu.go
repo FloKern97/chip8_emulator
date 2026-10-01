@@ -411,3 +411,13 @@ func (cpu *CPU) FetchAndExecuteCommand() (uint16, error) {
 
 	return opCode, nil
 }
+
+func (cpu *CPU) DecreaseDelayAndSoundTimer() {
+	if cpu.Delay > 0 {
+		cpu.Delay -= 1
+	}
+
+	if cpu.Sound > 0 {
+		cpu.Sound -= 1
+	}
+}

@@ -978,3 +978,100 @@ func TestExecuteSetIToFontAddressForA(t *testing.T) {
 		t.Fatalf("expected I to be 0x082, got 0x%X", cpu.I)
 	}
 }
+
+func TestFetchAndExecute(t *testing.T) {
+	cpu := NewCPU()
+	loadingErr := cpu.LoadROM([]byte{0x12, 0x1A})
+
+	if loadingErr != nil {
+		t.Fatalf("Error while loading bytes %v", loadingErr)
+	}
+
+	opcode, executeErr := cpu.FetchAndExecuteCommand()
+
+	if executeErr != nil {
+		t.Fatalf("Error executing opCode %v", executeErr)
+	}
+
+	if opcode != 0x121A {
+		t.Fatalf("Expected opCode to be 0x121A, got %x", opcode)
+	}
+
+	if cpu.PC != 0x021A {
+		t.Fatalf("Expected Program Count (PC) to be at 0x021A, got %x", cpu.PC)
+	}
+}
+
+func TestFetchAndExecuteUnknownCode(t *testing.T) {
+	cpu := NewCPU()
+	loadingErr := cpu.LoadROM([]byte{0xFF, 0xFF})
+
+	if loadingErr != nil {
+		t.Fatalf("Error while loading bytes %v", loadingErr)
+	}
+
+	opcode, executeErr := cpu.FetchAndExecuteCommand()
+
+	if executeErr == nil {
+		t.Fatalf("Expected an error due to an unknown opCode.")
+	}
+
+	if opcode != 0xFFFF {
+		t.Fatalf("Expected opCode to be 0xFFFF, got %x", opcode)
+	}
+
+	if cpu.PC != 0x202 {
+		t.Fatalf("Expected Program Count (PC) to be at 0x0202, got %x", cpu.PC)
+	}
+}
+
+func TestTimerDecrease(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.Delay = 10
+	cpu.Sound = 10
+
+	cpu.DecreaseDelayAndSoundTimer()
+
+	if cpu.Delay != 9 {
+		t.Fatalf("Expected delay to be 9, got %x instead", cpu.Delay)
+	}
+
+	if cpu.Sound != 9 {
+		t.Fatalf("Expected sound to be 9, got %x instead", cpu.Sound)
+	}
+}
+
+func TestTimerDecreaseBothValuesZero(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.Delay = 0
+	cpu.Sound = 0
+
+	cpu.DecreaseDelayAndSoundTimer()
+
+	if cpu.Delay != 0 {
+		t.Fatal("Delay can not be lower than 0.")
+	}
+
+	if cpu.Sound != 0 {
+		t.Fatal("Sound can not be lower than 0")
+	}
+}
+
+func TestTimerDecreaseBothValuesOne(t *testing.T) {
+	cpu := NewCPU()
+
+	cpu.Delay = 1
+	cpu.Sound = 1
+
+	cpu.DecreaseDelayAndSoundTimer()
+
+	if cpu.Delay != 0 {
+		t.Fatalf("Expected delay to be 0, got %x instead", cpu.Delay)
+	}
+
+	if cpu.Sound != 0 {
+		t.Fatalf("Expected sound to be 0, got %x instead", cpu.Sound)
+	}
+}
