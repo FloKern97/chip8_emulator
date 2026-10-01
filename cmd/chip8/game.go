@@ -3,7 +3,6 @@ package main
 import (
 	"image"
 	"my_emulator/internal/chip8"
-
 	"github.com/hajimehoshi/ebiten/v2"
 )
 

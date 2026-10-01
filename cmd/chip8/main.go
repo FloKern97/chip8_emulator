@@ -31,7 +31,7 @@ func main() {
 	}
 
 	fmt.Println("Successfully read ROM file into memory.")
-	ebiten.SetWindowSize(640, 320)
+	ebiten.SetWindowSize(1280, 640)
 	ebiten.SetWindowTitle("CHIP-8 Emulator")
 
 	gameError := ebiten.RunGame(&Game{gameCpu: cpu})
