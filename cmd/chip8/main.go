@@ -2,39 +2,30 @@ package main
 
 import (
 	"fmt"
-	"github.com/hajimehoshi/ebiten/v2"
-	"my_emulator/internal/chip8"
 	"os"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
+const audioSampleRate = 44100
+
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "Error: please provide a ROM path.")
-		return
-	}
-
-	romPath := os.Args[1]
-
-	rom, err := os.ReadFile(romPath)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading the ROM file: %v", err)
-		return
-	}
-
-	cpu := chip8.NewCPU()
-	loadingErr := cpu.LoadROM(rom)
-
-	if loadingErr != nil {
-		fmt.Fprintf(os.Stderr, "An error occurred while processing ROM file: %v", loadingErr)
-		return
-	}
-
-	fmt.Println("Successfully read ROM file into memory.")
-	ebiten.SetWindowSize(1280, 640)
+	// TODO Maybe add dynamic window size some other time
+	ebiten.SetWindowSize(1920, 1080)
 	ebiten.SetWindowTitle("CHIP-8 Emulator")
 
-	gameError := ebiten.RunGame(&Game{gameCpu: cpu})
+	audioContext := audio.NewContext(audioSampleRate)
+	soundPlayer, err := newSoundPlayer(audioContext)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating CHIP-8 sound player: %v\n", err)
+		return
+	}
+
+	gameError := ebiten.RunGame(&Game{
+		soundPlayer: soundPlayer,
+		status:      "Select a ROM to start",
+	})
 
 	if gameError != nil {
 		fmt.Fprintf(os.Stderr, "Error running CHIP-8 window: %v\n", gameError)

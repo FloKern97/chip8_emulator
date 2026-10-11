@@ -1,17 +1,38 @@
 package chip8
 
-import "errors"
-import "math/rand"
+import (
+	"errors"
+	"math/rand"
+)
 
 const (
-	memorySize   = 4096
-	programStart = 0x200
-	registers    = 16
-	stackSize    = 16
-	byteSize     = 8
-	fontStart = 0x050
+	memorySize     = 4096
+	programStart   = 0x200
+	registers      = 16
+	stackSize      = 16
+	byteSize       = 8
+	fontStart      = 0x050
 	fontSpriteSize = 5
 )
+
+var fontSprites = [16][fontSpriteSize]byte{
+	{0xF0, 0x90, 0x90, 0x90, 0xF0},
+	{0x20, 0x60, 0x20, 0x20, 0x70},
+	{0xF0, 0x10, 0xF0, 0x80, 0xF0},
+	{0xF0, 0x10, 0xF0, 0x10, 0xF0},
+	{0x90, 0x90, 0xF0, 0x10, 0x10},
+	{0xF0, 0x80, 0xF0, 0x10, 0xF0},
+	{0xF0, 0x80, 0xF0, 0x90, 0xF0},
+	{0xF0, 0x10, 0x20, 0x40, 0x40},
+	{0xF0, 0x90, 0xF0, 0x90, 0xF0},
+	{0xF0, 0x90, 0xF0, 0x10, 0xF0},
+	{0xF0, 0x90, 0xF0, 0x90, 0x90},
+	{0xE0, 0x90, 0xE0, 0x90, 0xE0},
+	{0xF0, 0x80, 0x80, 0x80, 0xF0},
+	{0xE0, 0x90, 0x90, 0x90, 0xE0},
+	{0xF0, 0x80, 0xF0, 0x80, 0xF0},
+	{0xF0, 0x80, 0xF0, 0x80, 0x80},
+}
 
 type CPU struct {
 	Memory  [memorySize]byte
@@ -27,9 +48,13 @@ type CPU struct {
 }
 
 func NewCPU() *CPU {
-	return &CPU{
-		PC: programStart,
+	cpu := &CPU{PC: programStart}
+	for digit, sprite := range fontSprites {
+		start := fontStart + digit*fontSpriteSize
+		copy(cpu.Memory[start:start+fontSpriteSize], sprite[:])
 	}
+
+	return cpu
 }
 
 func (cpu *CPU) LoadROM(rom []byte) error {
@@ -164,12 +189,13 @@ func (cpu *CPU) Execute(opCode uint16) error {
 
 	// EX9E and EXA1: Skip next command if button is pressed (EX9E) or if it is not pressed (EXA1)
 	case 0xE000:
-		if opCode&0x00FF == 0xA1 {
+		switch opCode & 0x00FF {
+		case 0xA1:
 			cpu.handleSkipForUnpressedButton(opCode)
-		}
-
-		if opCode&0x00FF == 0x9E {
+		case 0x9E:
 			cpu.handleSkipForPressedButton(opCode)
+		default:
+			return errors.New("unsupported key opcode")
 		}
 
 	case 0xF000:
@@ -209,16 +235,27 @@ func (cpu *CPU) handleDisplayDraw(opCode uint16) {
 	xCoordinate := cpu.V[int((opCode&0x0F00)>>8)]
 	yCoordinate := cpu.V[int((opCode&0x00F0)>>4)]
 	height := opCode & 0x000F
+	displayHeight := len(cpu.Display)
+	displayWidth := len(cpu.Display[0])
 
 	for spriteRow := 0; spriteRow < int(height); spriteRow++ {
 		spriteByte := cpu.Memory[int(cpu.I)+spriteRow]
+		y := int(yCoordinate) + spriteRow
+		if y >= displayHeight {
+			continue
+		}
 
 		for pixelColumn := 0; pixelColumn < byteSize; pixelColumn++ {
 			mask := byte(0x80 >> pixelColumn)
 
-			if spriteByte & mask != 0 {
-				wasActivePixel := cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
-				cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn] = !cpu.Display[int(yCoordinate)+spriteRow][int(xCoordinate)+pixelColumn]
+			if spriteByte&mask != 0 {
+				x := int(xCoordinate) + pixelColumn
+				if x >= displayWidth {
+					continue
+				}
+
+				wasActivePixel := cpu.Display[y][x]
+				cpu.Display[y][x] = !cpu.Display[y][x]
 
 				if wasActivePixel {
 					cpu.V[15] = 1
@@ -378,12 +415,12 @@ func (cpu *CPU) handleTimerCodes(opCode uint16) error {
 		thirdDigit := value % 10
 
 		cpu.Memory[cpu.I] = firstDigit
-		cpu.Memory[cpu.I + 1] = secondDigit
-		cpu.Memory[cpu.I + 2] = thirdDigit
-	
+		cpu.Memory[cpu.I+1] = secondDigit
+		cpu.Memory[cpu.I+2] = thirdDigit
+
 	case 0x29:
 		digit := cpu.V[register]
-		cpu.I = fontStart + uint16(digit) * fontSpriteSize
+		cpu.I = fontStart + uint16(digit)*fontSpriteSize
 
 	default:
 		return errors.New("unsupported timer opcode")

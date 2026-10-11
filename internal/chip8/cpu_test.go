@@ -26,6 +26,26 @@ func TestNewCPU(t *testing.T) {
 	}
 }
 
+func TestNewCPULoadsFontSprites(t *testing.T) {
+	zeroSprite := [fontSpriteSize]byte{0xF0, 0x90, 0x90, 0x90, 0xF0}
+	aSprite := [fontSpriteSize]byte{0xF0, 0x90, 0xF0, 0x90, 0x90}
+
+	cpu := NewCPU()
+
+	for row, expected := range zeroSprite {
+		if got := cpu.Memory[fontStart+row]; got != expected {
+			t.Fatalf("expected zero sprite byte %d at address 0x%X to be 0x%X, got 0x%X", row, fontStart+row, expected, got)
+		}
+	}
+
+	aStart := fontStart + 0xA*fontSpriteSize
+	for row, expected := range aSprite {
+		if got := cpu.Memory[aStart+row]; got != expected {
+			t.Fatalf("expected A sprite byte %d at address 0x%X to be 0x%X, got 0x%X", row, aStart+row, expected, got)
+		}
+	}
+}
+
 func TestLoadROM(t *testing.T) {
 	cpu := NewCPU()
 
@@ -706,6 +726,31 @@ func TestExecuteDrawUsesXOR(t *testing.T) {
 	}
 }
 
+func TestExecuteDrawClipsAtDisplayEdges(t *testing.T) {
+	cpu := NewCPU()
+	cpu.I = 0x300
+	cpu.Memory[0x300] = 0b11000000
+	cpu.Memory[0x301] = 0b10000000
+	cpu.V[0] = 63
+	cpu.V[1] = 31
+
+	if err := cpu.Execute(0xD012); err != nil {
+		t.Fatalf("unexpected error while drawing sprite at display edges: %v", err)
+	}
+
+	if !cpu.Display[31][63] {
+		t.Fatal("expected sprite to draw its first pixel at the bottom-right corner")
+	}
+
+	if cpu.Display[31][0] {
+		t.Fatal("expected sprite to be clipped at the right edge")
+	}
+
+	if cpu.Display[0][63] {
+		t.Fatal("expected sprite to be clipped at the bottom edge")
+	}
+}
+
 func TestExecuteClearScreen(t *testing.T) {
 	cpu := NewCPU()
 	cpu.Display[0][0] = true
@@ -764,6 +809,17 @@ func TestExecuteSkipIfKeyIsNotPressed(t *testing.T) {
 
 	if cpu.PC != 0x204 {
 		t.Fatalf("Expected PC to be 0x204 after skipping because button was not pressed")
+	}
+}
+
+func TestExecuteUnsupportedKeyOpcode(t *testing.T) {
+	tests := []uint16{0xE000, 0xE09F, 0xE0FF}
+
+	for _, opcode := range tests {
+		cpu := NewCPU()
+		if err := cpu.Execute(opcode); err == nil {
+			t.Errorf("expected opcode 0x%04X to be rejected", opcode)
+		}
 	}
 }
 
@@ -979,6 +1035,46 @@ func TestExecuteSetIToFontAddressForA(t *testing.T) {
 	}
 }
 
+func TestExecuteDrawFontSpriteForZero(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[0] = 0
+	cpu.V[1] = 0
+
+	err := cpu.Execute(0xF029)
+
+	if err != nil {
+		t.Fatalf("unexpected error while selecting zero font sprite: %v", err)
+	}
+
+	if cpu.I != fontStart {
+		t.Fatalf("expected I to point to zero font sprite at 0x%X, got 0x%X", fontStart, cpu.I)
+	}
+
+	err = cpu.Execute(0xD015)
+
+	if err != nil {
+		t.Fatalf("unexpected error while drawing zero font sprite: %v", err)
+	}
+
+	for x := 0; x < 4; x++ {
+		if !cpu.Display[0][x] {
+			t.Fatalf("expected top-row pixel at x=%d to be on", x)
+		}
+	}
+
+	if cpu.Display[0][4] {
+		t.Fatal("expected top-row pixel at x=4 to be off")
+	}
+
+	if !cpu.Display[1][0] || !cpu.Display[1][3] {
+		t.Fatal("expected second-row edge pixels of zero sprite to be on")
+	}
+
+	if cpu.Display[1][1] || cpu.Display[1][2] {
+		t.Fatal("expected second-row inner pixels of zero sprite to be off")
+	}
+}
+
 func TestFetchAndExecute(t *testing.T) {
 	cpu := NewCPU()
 	loadingErr := cpu.LoadROM([]byte{0x12, 0x1A})
@@ -1074,4 +1170,23 @@ func TestTimerDecreaseBothValuesOne(t *testing.T) {
 	if cpu.Sound != 0 {
 		t.Fatalf("Expected sound to be 0, got %x instead", cpu.Sound)
 	}
+}
+
+func TestSoundHasCorrectValueAfterCommand(t *testing.T) {
+	cpu := NewCPU()
+	cpu.V[2] = 5
+
+	err := cpu.Execute(0xF218)
+
+	if err != nil {
+		t.Fatalf("Error while executing command %v", err)
+
+	}
+
+	if cpu.Sound != cpu.V[2] {
+		t.Fatal("Wrong value stored in sound.")
+
+	}
+
+	cpu.DecreaseDelayAndSoundTimer()
 }
