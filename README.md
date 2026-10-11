@@ -1,8 +1,8 @@
 # My Emulator
 
-This repository is a learning project for building emulators in Go.
+This repository is a standalone learning project for building a CHIP-8 emulator in Go.
 
-The first milestone is a CHIP-8 emulator, used to learn the core ideas:
+It covers core emulator concepts:
 
 - CPU state
 - memory maps
@@ -13,7 +13,8 @@ The first milestone is a CHIP-8 emulator, used to learn the core ideas:
 - input handling
 - tests for machine behavior
 
-After that, the project will move toward a Game Boy Advance emulator.
+This project is focused on CHIP-8. Other emulator projects, such as a future
+Game Boy Advance emulator, will live in separate repositories.
 
 ## Commands
 
